@@ -100,6 +100,8 @@ WantedBy=multi-user.target
 - `/docs` で Swagger UI, `/redoc` で ReDoc 表示\
 - `/healthz` で死活確認
 
+![capture](capture.png)
+
 ---
 
 ## 🧪 テスト手順
