@@ -15,7 +15,7 @@ if os.path.isdir("static"):
     app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # ===== 設定 =====
-CAPACITY = {"toilet": 2, "smoking": 8}
+CAPACITY = {"toilet": 2, "smoking": 8, "toilet2": 3, "shower1": 1, "shower2": 1, "checkin": 3, "checkout": 2}
 UPDATE_INTERVAL_SEC = 5  # サーバの状態更新周期（全端末共通）
 
 # ===== 共有状態 =====
@@ -26,6 +26,26 @@ STATE = {
     },
     "smoking": {
         "capacity": CAPACITY["smoking"], "in_use": 0,
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    },
+    "toilet2": {
+        "capacity": CAPACITY["toilet2"], "in_use": 0,
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    },
+    "shower1": {
+        "capacity": CAPACITY["shower1"], "in_use": 0,
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    },
+    "shower2": {
+        "capacity": CAPACITY["shower2"], "in_use": 0,
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    },
+    "checkin": {
+        "capacity": CAPACITY["checkin"], "in_use": 0,
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    },
+    "checkout": {
+        "capacity": CAPACITY["checkout"], "in_use": 0,
         "updated_at": datetime.now(timezone.utc).isoformat(),
     },
 }
@@ -60,7 +80,7 @@ async def on_startup():
     asyncio.create_task(_update_loop())
 
 # ====== スキーマ ======
-Area = Literal["toilet", "smoking"]
+Area = Literal["toilet", "smoking", "toilet2", "shower1", "shower2", "checkin", "checkout"]
 
 class Status(BaseModel):
     area: Area = Field(..., description="エリア識別子")
@@ -99,6 +119,27 @@ def toilet_status():
 @app.get("/api/status/smoking", response_model=Status)
 def smoking_status():
     return status_from_state("smoking")
+
+@app.get("/api/status/toilet2", response_model=Status)
+def toilet2_status():
+    return status_from_state("toilet2")
+
+@app.get("/api/status/shower1", response_model=Status)
+def shower1_status():
+    return status_from_state("shower1")
+
+@app.get("/api/status/shower2", response_model=Status)
+def shower2_status():
+    return status_from_state("shower2")
+
+@app.get("/api/status/checkin", response_model=Status)
+def checkin_status():
+    return status_from_state("checkin")
+
+
+@app.get("/api/status/checkout", response_model=Status)
+def checkout_status():
+    return status_from_state("checkout")
 
 # 簡易ヘルスチェック
 @app.get("/healthz", response_model=Health)

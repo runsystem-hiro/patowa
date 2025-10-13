@@ -5,69 +5,133 @@
   <title>待ち人数可視化（PoC）</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
-    :root{
-      --bg:#f8f9fa; --fg:#222; --muted:#6c757d; --card:#fff; --line:#ddd;
-      --ok:#28a745; --mid:#ff9800; --bad:#dc3545; --idle:#e9ecef;
-    }
-    html,body{height:100%}
-    body{
-      margin:0; background:var(--bg); color:var(--fg);
-      font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans JP", sans-serif;
-      padding:1.2rem; display:flex; flex-direction:column; gap:1rem;
-    }
-    header,footer{display:flex; align-items:center; justify-content:space-between}
-    h1{margin:0; font-size:clamp(1.4rem, 2.2vw, 2rem); font-weight:700}
-    .clock{color:var(--muted); font-size:clamp(1rem,1.8vw,1.2rem)}
+:root{
+  --bg:#f8f9fa; --fg:#222; --muted:#6c757d; --card:#fff; --line:#ddd;
+  --ok:#28a745; --mid:#ff9800; --bad:#dc3545; --idle:#e9ecef;
+}
 
-    .grid{display:grid; gap:1.2rem; grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
-    .panel{background:var(--card); border:1px solid var(--line); border-radius:18px; padding:1.6rem; box-shadow:0 4px 12px rgba(0,0,0,.08)}
-    .title{display:flex; align-items:center; justify-content:center; gap:.6rem; font-size:clamp(1.2rem,2.4vw,1.8rem); font-weight:700; margin-bottom:1rem}
-    .badge{padding:.35rem .8rem; border-radius:999px; font-weight:700; font-size:clamp(.9rem,1.6vw,1rem)}
-    .badge.ok{background:var(--ok); color:#fff}
-    .badge.mid{background:var(--mid); color:#222}
-    .badge.bad{background:var(--bad); color:#fff}
+html,body{height:100%}
 
-    .wrap{display:flex; gap:1.6rem; align-items:center; justify-content:center; flex-wrap:wrap}
-    .gauge{width:clamp(140px,32vw,240px); height:clamp(140px,32vw,240px); border-radius:50%;
-      display:grid; place-items:center; background: conic-gradient(var(--gauge-color) calc(var(--pct) * 1%), #e9ecef 0); position:relative;}
-    .gauge::after{content:""; position:absolute; inset:8%; background:#fff; border-radius:50%; border:1px solid var(--line)}
-    .gauge-content{position:absolute; text-align:center}
-    .big{font-size:clamp(2.4rem,6vw,5rem); font-weight:800; line-height:1}
-    .sub{color:var(--muted); font-size:clamp(1rem,1.8vw,1.2rem)}
+/* === 全体 === */
+body{
+  margin: 0 auto;
+  max-width: 1920px; /* FHD想定の最大幅 */
+  background: var(--bg);
+  color: var(--fg);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans JP", sans-serif;
+  padding: 1.2rem;
+}
 
-    .bar{display:flex; gap:.5rem; width:100%}
-    .slot{flex:1; height:28px; border-radius:6px; background:var(--idle)}
-    .slot.used.ok{background:var(--ok)} .slot.used.mid{background:var(--mid)} .slot.used.bad{background:var(--bad)}
+header,footer{display:flex; align-items:center; justify-content:space-between}
+h1{margin:0; font-size:clamp(1.4rem, 2.2vw, 2rem); font-weight:700}
+.clock{color:var(--muted); font-size:clamp(1rem,1.8vw,1.2rem)}
 
-    .meta{display:flex; gap:1rem; justify-content:center; color:var(--muted); margin-top:.6rem; font-size:clamp(.95rem,1.6vw,1.05rem)}
-    .hint{color:var(--muted); font-size:.9rem}
-    .danger{position:fixed; left:50%; transform:translateX(-50%); bottom:14px; background:var(--bad); color:#fff; padding:.6rem 1rem; border-radius:999px; font-weight:700; display:none}
-    .danger.show{display:block}
-    .fs-btn{border:1px solid var(--line); background:#fff; padding:.5rem .8rem; border-radius:10px; cursor:pointer; box-shadow:0 2px 6px rgba(0,0,0,.06); font-weight:600}
+/* === グリッド配置 === */
+.grid{
+  display:grid;
+  gap:1.2rem;
+  grid-template-columns:repeat(auto-fit, minmax(240px, 1fr));
+  justify-content:center;   /* 横長時に中央寄せ */
+  align-content:start;
+}
 
-    /* スパークライン */
-    .sparkbox{margin-top:.6rem; display:flex; align-items:center; gap:.6rem; justify-content:center}
-    .sparklabel{font-size:.85rem; color:var(--muted)}
-    .emoji{font-size:1.3em; line-height:1}
+/* 横長モニタ（HD以上）では3列×2行固定にして見切れ防止 */
+@media (min-width: 1280px){
+  .grid{ grid-template-columns:repeat(3, minmax(240px, 1fr)); }
+}
 
-    @media (max-width: 720px){ .wrap{flex-direction: column; align-items: stretch; gap:1rem} .panel{padding:1.2rem} }
+/* 縦置きモニタは3列表示 */
+@media (orientation: portrait) and (min-width: 900px){
+  .grid{ grid-template-columns: repeat(3, minmax(240px, 1fr)); }
+}
+
+/* === カード・内容 === */
+.panel{
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:18px;
+  padding:1.6rem;
+  box-shadow:0 4px 12px rgba(0,0,0,.08);
+}
+.title{
+  display:flex; align-items:center; justify-content:center;
+  gap:.6rem; font-size:clamp(1.2rem,2.4vw,1.8rem); font-weight:700; margin-bottom:1rem;
+}
+.badge{padding:.35rem .8rem; border-radius:999px; font-weight:700; font-size:clamp(.9rem,1.6vw,1rem)}
+.badge.ok{background:var(--ok); color:#fff}
+.badge.mid{background:var(--mid); color:#222}
+.badge.bad{background:var(--bad); color:#fff}
+
+/* === ゲージ・使用率 === */
+.wrap{display:flex; gap:1.6rem; align-items:center; justify-content:center; flex-wrap:wrap}
+.gauge{
+  width:clamp(120px,18vw,200px);
+  height:clamp(120px,18vw,200px);
+  border-radius:50%;
+  display:grid; place-items:center;
+  background:conic-gradient(var(--gauge-color) calc(var(--pct) * 1%), #e9ecef 0);
+  position:relative;
+}
+.gauge::after{content:""; position:absolute; inset:8%; background:#fff; border-radius:50%; border:1px solid var(--line)}
+.gauge-content{position:absolute; text-align:center}
+.big{font-size:clamp(2.4rem,6vw,5rem); font-weight:800; line-height:1}
+.sub{color:var(--muted); font-size:clamp(1rem,1.8vw,1.2rem)}
+
+.bar{display:flex; gap:.5rem; width:100%}
+.slot{flex:1; height:28px; border-radius:6px; background:var(--idle)}
+.slot.used.ok{background:var(--ok)} .slot.used.mid{background:var(--mid)} .slot.used.bad{background:var(--bad)}
+
+.meta{display:flex; gap:1rem; justify-content:center; color:var(--muted); margin-top:.6rem; font-size:clamp(.95rem,1.6vw,1.05rem)}
+.hint{color:var(--muted); font-size:.9rem}
+.danger{position:fixed; left:50%; transform:translateX(-50%); bottom:14px; background:var(--bad); color:#fff; padding:.6rem 1rem; border-radius:999px; font-weight:700; display:none}
+.danger.show{display:block}
+.fs-btn{border:1px solid var(--line); background:#fff; padding:.5rem .8rem; border-radius:10px; cursor:pointer; box-shadow:0 2px 6px rgba(0,0,0,.06); font-weight:600}
+
+/* === スパークライン === */
+.sparkbox{margin-top:.6rem; display:flex; align-items:center; gap:.6rem; justify-content:center}
+.sparklabel{font-size:.85rem; color:var(--muted)}
+.emoji{font-size:1.3em; line-height:1}
+
+.dev-link {
+  font-weight: 600;
+  color: #FF0051; /* メインカラー */
+  text-decoration: none;
+  border-bottom: 1px dotted rgba(255, 0, 81, 0.6);
+  transition: color 0.2s, border-color 0.2s;
+}
+
+.dev-link:hover {
+  color: #ff4d7f; /* 明るめの赤ピンク */
+  border-bottom-color: #ff4d7f;
+}
+
+/* スマホ向け微調整 */
+@media (max-width: 720px){
+  .grid{ grid-template-columns: 1fr; } 
+  .wrap{flex-direction: column; align-items: stretch; gap:1rem}
+  .panel{padding:1.2rem}
+}
   </style>
 </head>
 <body>
   <header>
-    <h1>男子トイレ／喫煙所 利用人数ダッシュボード</h1>
+    <h1>自遊空間NEXT ○○〇〇店 利用人数ダッシュボード</h1>
     <div class="clock" id="clock">--:--</div>
   </header>
 
   <div class="grid" role="list">
     <section class="panel" id="toilet" role="listitem" aria-label="男子トイレ"></section>
-    <section class="panel" id="smoking" role="listitem" aria-label="喫煙所"></section>
+    <section class="panel" id="toilet2" role="listitem" aria-label="女子トイレ"></section>
+    <section class="panel" id="shower1" role="listitem" aria-label="シャワー1"></section>
+    <section class="panel" id="shower2" role="listitem" aria-label="シャワー2"></section>
+    <section class="panel" id="checkin" role="listitem" aria-label="セルフ入会入場機"></section>
+    <section class="panel" id="checkout" role="listitem" aria-label="セルフ精算機"></section>
   </div>
 
   <footer>
     <div class="hint">
       更新間隔: <span id="intervalView"></span> 秒 ・ しきい値 low=<span id="lowView"></span>, high=<span id="highView"></span>
-      ・ キー操作: <b>F</b> 全画面, <b>R</b> 再読込
+      ・ キー操作: <b>F</b> 全画面, <b>R</b> 再読込 ・ <a href="/" class="dev-link">横浜本社モック💻</a>
     </div>
     <button class="fs-btn" id="fsBtn" type="button" aria-label="フルスクリーン切替">全画面</button>
   </footer>
@@ -84,7 +148,7 @@
 
     // 履歴保持（直近 n 点）
     const HISTORY_POINTS = 30;
-    const history = { toilet: [], smoking: [] };
+    const history = { toilet: [], toilet2: [] , shower1: [] , shower2: [] , checkin: [] , checkout: [] };
 
     // ===== util =====
     const $ = (id) => document.getElementById(id);
@@ -94,22 +158,39 @@
     function emojiByLevel(lv){ return lv==="bad" ? "😫" : lv==="mid" ? "😐" : "😃"; }
 
     // スパークラインSVGを生成（values: 数値配列, max: スケール上限）
-    function sparkline(values, max, width=180, height=40, stroke="#6c757d"){
+    function sparkline(values, max, width=180, height=40){
       if (!values.length || max <= 0) return `<svg width="${width}" height="${height}"></svg>`;
       const n = values.length;
       const step = (width-2) / Math.max(1, n-1);
       const pad = 1;
-      const ys = values.map(v => height - pad - (Math.max(0, Math.min(max, v)) / max) * (height-2*pad));
+
+      // X座標とY座標を計算
       const xs = Array.from({length:n}, (_,i)=> pad + i*step);
-      let d = `M ${xs[0].toFixed(1)} ${ys[0].toFixed(1)}`;
-      for (let i=1;i<n;i++){ d += ` L ${xs[i].toFixed(1)} ${ys[i].toFixed(1)}`; }
-      const last = values[n-1];
-      return `
-        <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" aria-hidden="true">
-          <polyline fill="none" stroke="${stroke}" stroke-width="2" points="${xs.map((x,i)=>`${x},${ys[i]}`).join(' ')}" />
-          <circle cx="${xs[n-1]}" cy="${ys[n-1]}" r="3" fill="${stroke}" />
-        </svg>
-      `;
+      const ys = values.map(v => height - pad - (Math.max(0, Math.min(max, v)) / max) * (height-2*pad));
+
+      // 使用率ごとに色を決定
+      function levelColor(v, cap){
+        const ratio = v/cap;
+        if (ratio >= HIGH) return "#dc3545";   // red
+        if (ratio >= LOW)  return "#ff9800";   // orange
+        return "#28a745";                      // green
+      }
+
+      // 線分を色分けして描画
+      let lines = "";
+      for (let i=0;i<n-1;i++){
+        const color = levelColor(values[i], max);
+        lines += `<line x1="${xs[i]}" y1="${ys[i]}" x2="${xs[i+1]}" y2="${ys[i+1]}"
+                    stroke="${color}" stroke-width="2" />`;
+      }
+
+      // 最後の点を目立たせる丸
+      const lastColor = levelColor(values[n-1], max);
+      const last = `<circle cx="${xs[n-1]}" cy="${ys[n-1]}" r="3" fill="${lastColor}" />`;
+
+      return `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
+                ${lines} ${last}
+              </svg>`;
     }
 
     // fetchにタイムアウトを付与
@@ -191,8 +272,12 @@
     function start(){ if(timer) return; tick(); timer = setInterval(tick, INTERVAL*1000); }
     function stop(){ if(!timer) return; clearInterval(timer); timer = null; }
     function tick(){
-      updatePanel("/api/status/toilet", $("toilet"), "toilet", "男子トイレ", "🚻");
-      updatePanel("/api/status/smoking", $("smoking"), "smoking", "喫煙所", "🚬");
+      updatePanel("/api/status/toilet", $("toilet"), "toilet", "男子トイレ", "🚽");
+      updatePanel("/api/status/toilet2", $("toilet2"), "toilet2", "女子トイレ", "🚽");
+      updatePanel("/api/status/shower1", $("shower1"), "shower1", "シャワー1", "🚿");
+      updatePanel("/api/status/shower2", $("shower2"), "shower2", "シャワー2", "🚿");
+      updatePanel("/api/status/checkin", $("checkin"), "checkin", "セルフ入会入場機", "🖥️");
+      updatePanel("/api/status/checkout", $("checkout"), "checkout", "セルフ精算", "💴");
     }
     document.addEventListener("visibilitychange", ()=> document.hidden ? stop() : start());
     start();
